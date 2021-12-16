@@ -9,7 +9,7 @@ import sys
 from dataset import MyDataset
 import numpy as np
 import time
-from model import LipNet
+from model import LipNetConsonant
 import torch.optim as optim
 import re
 import json
@@ -208,7 +208,7 @@ def train(model, net):
 
 if(__name__ == '__main__'):
     print("Loading options...")
-    model = LipNet() # モデルの定義
+    model = LipNetConsonant() # モデルの定義
     model = model.cuda() # gpu使用
     net = nn.DataParallel(model).cuda() # データの並列処理化
 

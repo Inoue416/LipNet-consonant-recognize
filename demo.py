@@ -9,7 +9,7 @@ import sys
 from dataset import MyDataset
 import numpy as np
 import time
-from model import LipNet
+from model import LipNetConsonant
 import torch.optim as optim
 import re
 import json
@@ -17,9 +17,34 @@ import tempfile
 import shutil
 import cv2
 import face_alignment
+from PIL import Image, ImageDraw, ImageFont
 
-FILE_PATH = 'data/frames/i_v/i_v0/i_v0_0_frame'
+FILE_PATH = 'data/frames/sample'
 FILE_OUT = 'samples/frames'
+
+def pil2cv(imgPIL):
+    imgCV_RGB = np.array(imgPIL, dtype = np.uint8)
+    imgCV_BGR = np.array(imgPIL)[:, :, ::-1]
+    return imgCV_BGR
+
+def cv2pil(imgCV):
+    imgCV_RGB = imgCV[:, :, ::-1]
+    imgPIL = Image.fromarray(imgCV_RGB)
+    return imgPIL
+
+def cv2_putText_1(img, text, org, fontFace, fontScale, color):
+    x, y = org
+    b, g, r = color
+    colorRGB = (r, g, b)
+    imgPIL = cv2pil(img)
+    draw = ImageDraw.Draw(imgPIL)
+    fontPIL = ImageFont.truetype(font = "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc", size = fontScale)
+    draw.text(xy = (x,y), text = text, fill = colorRGB, font = fontPIL)
+    """
+    後でここに追加する
+    """
+    imgCV = pil2cv(imgPIL)
+    return imgCV
 
 def get_position(size, padding=0.25):
 
@@ -57,19 +82,24 @@ def output_video(p, txt, dst):
     files = sorted(files, key=lambda x: int(os.path.splitext(x)[0]))
 
     # ビデオへの文字列書き込み処理
-    font = cv2.FONT_HERSHEY_SIMPLEX
 
     for file, line in zip(files, txt):
         img = cv2.imread(os.path.join(FILE_PATH, file))
         h, w, _ = img.shape
-        img = cv2.putText(img, line, (w//8, 11*h//12), font, 0.5, (0, 0, 0), 3, cv2.LINE_AA)
-        img = cv2.putText(img, line, (w//8, 11*h//12), font, 0.5, (255, 255, 255), 0, cv2.LINE_AA)
+        img = cv2_putText_1(img = img,
+                        text = line,
+                        org = (w//8,h//12),
+                        fontFace = "/usr/share/fonts/OTF/TakaoPMincho.ttf",
+                        fontScale = 5,
+                        color = (0,0,0))
+        #img = cv2.putText(img, line, (w//8, 11*h//12), font, 0.5, (0, 0, 0), 3, cv2.LINE_AA)
+        #img = cv2.putText(img, line, (w//8, 11*h//12), font, 0.5, (255, 255, 255), 0, cv2.LINE_AA)
         #h = h // 2
         #w = w // 2
         img = cv2.resize(img, (w, h))
         cv2.imwrite(os.path.join(p, file), img)
     # 処理後のフレームからビデオを作成するコマンド(1s毎に25枚の画像を生成)
-    cmd = "ffmpeg -y -i {}/%02d.jpg -r 30 \'samples/{}\'".format(FILE_OUT, dst)
+    cmd = "ffmpeg -y -i {}/%03d.jpg -r 30 \'samples/{}\'".format(FILE_OUT, dst)
     os.system(cmd)
 
 # TODO: 正規化や特異値分解で次元の削減
@@ -133,6 +163,7 @@ def load_video():
     for point, scene in zip(points, array): # フレームのランドマークと対応しているフレームの画像を1セットにしてそれを順に回す。
     #(point: ランドマーク, scene: ランドマークに対応している画像)
         if(point is not None): # ランドマークがある場合
+            print('exists landmark.')
             shape = np.array(point[0])
             # 口元部分のランドマークだけをとる
             shape = shape[17:]
@@ -144,6 +175,8 @@ def load_video():
             img = img[y-w//2:y+w//2,x-w:x+w,...]
             img = cv2.resize(img, (128, 64)) # 128x64の大きさに変換
             video.append(img) # 処理後の画像のデータを追加
+        else:
+            print('Non landmark.')
 
 
     video = np.stack(video, axis=0).astype(np.float32) # float32のnumpy配列にする
@@ -156,7 +189,6 @@ def ctc_decode(y):
     y = y.argmax(-1) # 横軸での最大要素を取り出す
     t = y.size(0) # 最大要素のサイズを代入
     print(t)
-    exit()
 
     result = []
     for i in range(t+1):
@@ -171,8 +203,8 @@ if(__name__ == '__main__'):
     # cpu か gpu のどちらを使うか指定
     os.environ['CUDA_VISIBLE_DEVICES'] = opt.gpu
 
-    #  LipNetの定義
-    model = LipNet()
+    #  LipNetConsonantの定義
+    model = LipNetConsonant()
     # cuda() : gpuへの切り替え
     model = model.cuda()
     net = nn.DataParallel(model).cuda()

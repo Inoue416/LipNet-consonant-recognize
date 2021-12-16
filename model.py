@@ -8,7 +8,7 @@ import numpy as np
 
 class LipNetConsonant(torch.nn.Module):
     def __init__(self, dropout_p=0.5):
-        super(LipNet, self).__init__()
+        super(LipNetConsonant, self).__init__()
         self.conv1 = nn.Conv3d(3, 32, (3, 5, 5), (1, 2, 2), (1, 2, 2))
         self.pool1 = nn.MaxPool3d((1, 2, 2), (1, 2, 2))
 
@@ -19,11 +19,11 @@ class LipNetConsonant(torch.nn.Module):
         self.conv3 = nn.Conv3d(64, 96, (3, 3, 3), (1, 1, 1), (1, 1, 1))
         self.pool3 = nn.MaxPool3d((1, 2, 2), (1, 2, 2))
 
-        # TODO: video_len_max is hiden state size. vlm equal video_len_max
-        self.gru1  = nn.GRU(96*4*8, video_len_max, 1, bidirectional=True)
-        self.gru2  = nn.GRU(vlm*2, vlm, 1, bidirectional=True)
+        # TODO: video_len_max is hiden state size. 256 equal video_len_max
+        self.gru1  = nn.GRU(96*4*8, 256, 1, bidirectional=True)
+        self.gru2  = nn.GRU(256*2, 256, 1, bidirectional=True)
 
-        self.FC    = nn.Linear(vlm*2, 10+1)
+        self.FC    = nn.Linear(256*2, 10+1)
 
         #self.gru1  = nn.GRU(96*4*8, 256, 1, bidirectional=True)
         #self.gru2  = nn.GRU(512, 256, 1, bidirectional=True)
@@ -52,10 +52,10 @@ class LipNetConsonant(torch.nn.Module):
         init.constant_(self.FC.bias, 0)
 
         for m in (self.gru1, self.gru2):
-            stdv = math.sqrt(2 / (96 * 3 * 6 + vlm))
+            stdv = math.sqrt(2 / (96 * 3 * 6 + 256))
             #stdv = math.sqrt(2 / (96 * 3 * 6 + 256))
-            for i in range(0, vlm * 3, vlm):
-                init.uniform_(m.weight_ih_l0[i: i + vlm],
+            for i in range(0, 256 * 3, 256):
+                init.uniform_(m.weight_ih_l0[i: i + 256],
                             -math.sqrt(3) * stdv, math.sqrt(3) * stdv) # 入力されたテンソルを一様分布から引き出された値で埋める
                 #init.uniform_(m.weight_ih_l0[i: i + 256],
                             #-math.sqrt(3) * stdv, math.sqrt(3) * stdv) # 入力されたテンソルを一様分布から引き出された値で埋める
@@ -64,15 +64,15 @@ class LipNetConsonant(torch.nn.Module):
                 # また、入力するテンソルは少なくとも2次元は必要であり、2次元を超える場合、後続の次元は平坦化される。
                 # 重みの初期化
 
-                init.orthogonal_(m.weight_hh_l0[i: i + vlm])
+                init.orthogonal_(m.weight_hh_l0[i: i + 256])
                 # バイアスの初期化
-                init.constant_(m.bias_ih_l0[i: i + vlm], 0)
+                init.constant_(m.bias_ih_l0[i: i + 256], 0)
 
                 # 上記と同じ
-                init.uniform_(m.weight_ih_l0_reverse[i: i + vlm],
+                init.uniform_(m.weight_ih_l0_reverse[i: i + 256],
                             -math.sqrt(3) * stdv, math.sqrt(3) * stdv)
-                init.orthogonal_(m.weight_hh_l0_reverse[i: i + vlm])
-                init.constant_(m.bias_ih_l0_reverse[i: i + vlm], 0)
+                init.orthogonal_(m.weight_hh_l0_reverse[i: i + 256])
+                init.constant_(m.bias_ih_l0_reverse[i: i + 256], 0)
 
                 #init.orthogonal_(m.weight_hh_l0[i: i + 256])
                 # バイアスの初期化
