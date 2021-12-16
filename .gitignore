@@ -1,6 +1,6 @@
-data/*
+data/
 data
 pretrain
-pretrain/*
+pretrain/
 __pychche__
 sample.MOV
